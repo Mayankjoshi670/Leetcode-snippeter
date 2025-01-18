@@ -1,16 +1,35 @@
 {
     "manifest_version": 3,
-    "name": "Chrome Extension Starter",
+    "name": "Leetcode-snippeter",
     "version": "1.0.0",
+    
     "action" : {
       "default_popup": "popup.html"
   },
   "options_page": "options.html",
-  "description": "This is the description of your extension",
+  "description": "Leetcode-snippeter is a chrome extension that helps you to save your code snippets for future reference and enables feature like auto complete.",
   "icons": {
     "16": "public/16.png",
     "32": "public/32.png",
     "48": "public/48.png",
     "192": "public/192.png"
-  }
+  },
+  "web_accessible_resources": [
+        {
+            "resources" : ["src/initialize.js","src/disable.js","src/enable.js"] , 
+            "matches" : ["https://leetcode.com/*"]
+        }
+    ],
+    "content_scripts" : [
+        {
+        "run_at": "document_end",
+        "js": ["src/content.js"],
+        "type" : "module",
+        "matches": [
+          "https://leetcode.com/problems/*",
+          "https://leetcode.com/contest/*"
+      ]
+        }
+    ]
+
   }
