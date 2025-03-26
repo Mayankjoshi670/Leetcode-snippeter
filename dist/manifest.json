@@ -1,22 +1,43 @@
 {
   "manifest_version": 3,
-  "name": " Code snippeter",
+  "name": "Leetcode Snippeter",
   "version": "1.0.0",
-  "action" : {
+  "action": {
     "default_popup": "popup.html"
-},
-"options_page": "options.html",
-"description": "Allows users to make custom code snippets.",
-"icons": {
-  "16": "public/16.png",
-  "32": "public/32.png",
-  "48": "public/48.png",
-  "192": "public/192.png"
-},
-"background": {
-  "service_worker": "background.js",
-  "type": "module",
-  "persistent": true
-},
-"permissions": ["storage", "activeTab", "scripting"]
+  },
+  "options_page": "options.html",
+  "description": "Save and search code snippets while solving problems on LeetCode",
+  "icons": {
+    "16": "public/16.png",
+    "32": "public/32.png",
+    "48": "public/48.png",
+    "192": "public/192.png"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.leetcode.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
+  "permissions": [
+    "storage",
+    "activeTab",
+    "clipboardWrite",
+    "scripting"
+  ],
+  "host_permissions": [
+    "*://*.leetcode.com/*"
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["content.js"],
+      "matches": ["*://*.leetcode.com/*"]
+    }
+  ]
 }

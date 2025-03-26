@@ -35,18 +35,15 @@ export const Popup: React.FC = () => {
 
     const newSnippet: Snippet = { title: snippetTitle, snippet: codeSnippet };
     const updatedSnippets = [...snippets, newSnippet];
-    chrome.storage.local.set({ "LeetcodeSnippeter": updatedSnippets }, () => {
-      console.log("Snippets saved!");
+
+    chrome.storage.local.set({ LeetcodeSnippeter: updatedSnippets }, () => {
+      setSnippets(updatedSnippets);
+      setSnippetTitle("");
+      setCodeSnippet("");
     });
-    setSnippets(updatedSnippets);
-    setSnippetTitle("");
-    setCodeSnippet("");
   };
 
   const toggleSnippet = (index: number): void => {
-    const snippetToToggle = snippets[index];
-    if (!snippetToToggle) return;
-
     setSnippets((prev) =>
       prev.map((snippet, i) =>
         i === index ? { ...snippet, expanded: !snippet.expanded } : snippet

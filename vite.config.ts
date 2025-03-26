@@ -10,10 +10,10 @@ export default defineConfig({
     viteStaticCopy({
       targets: [
         { src: "src/chrome-extension/manifest.json", dest: "." },
-        { src: "src/chrome-extension/public/16.png", dest: "./public" },
-        { src: "src/chrome-extension/public/32.png", dest: "./public" },
-        { src: "src/chrome-extension/public/48.png", dest: "./public" },
-        { src: "src/chrome-extension/public/192.png", dest: "./public" },
+        { src: "src/chrome-extension/public/*", dest: "./public" },
+        { src: "src/chrome-extension/popup.html", dest: "." },
+        { src: "src/chrome-extension/options.html", dest: "." },
+        { src: "src/chrome-extension/content.js", dest: "." },
       ],
     }),
   ],
@@ -21,11 +21,13 @@ export default defineConfig({
     open: "/popup-local.html",
   },
   build: {
+    outDir: "dist",
     rollupOptions: {
       input: {
-        popup: resolve(__dirname, "popup.html"),
-        options: resolve(__dirname, "options.html"),
-        background: resolve(__dirname, "src/background.ts")
+        popup: resolve(__dirname, "src/chrome-extension/popup.js"),
+        options: resolve(__dirname, "src/chrome-extension/options.js"),
+        background: resolve(__dirname, "src/chrome-extension/background.js"),
+        content: resolve(__dirname, "src/chrome-extension/content.js"),
       },
       output: {
         entryFileNames: "[name].js",
