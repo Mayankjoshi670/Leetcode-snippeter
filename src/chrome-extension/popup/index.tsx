@@ -16,9 +16,11 @@ export const Popup: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
-    const storedSnippets = localStorage.getItem("LeetcodeSnippeter");
-    const parsedSnippets: Snippet[] = storedSnippets ? JSON.parse(storedSnippets) : [];
-    setSnippets(parsedSnippets);
+    chrome.storage.local.get("LeetcodeSnippeter", (data) => {
+      if (data.LeetcodeSnippeter) {
+        setSnippets(data.LeetcodeSnippeter);
+      }
+    });
   }, []);
 
   const handleCopy = (text: string): void => {
@@ -33,40 +35,31 @@ export const Popup: React.FC = () => {
 
     const newSnippet: Snippet = { title: snippetTitle, snippet: codeSnippet };
     const updatedSnippets = [...snippets, newSnippet];
-    localStorage.setItem("LeetcodeSnippeter", JSON.stringify(updatedSnippets));
+    chrome.storage.local.set({ "LeetcodeSnippeter": updatedSnippets }, () => {
+      console.log("Snippets saved!");
+    });
     setSnippets(updatedSnippets);
     setSnippetTitle("");
     setCodeSnippet("");
   };
 
   const toggleSnippet = (index: number): void => {
-    const snippetToToggle = filteredSnippets[index];
+    const snippetToToggle = snippets[index];
     if (!snippetToToggle) return;
-  
+
     setSnippets((prev) =>
-      prev.map((snippet) =>
-        snippet === snippetToToggle
-          ? { ...snippet, expanded: !snippet.expanded }
-          : snippet
+      prev.map((snippet, i) =>
+        i === index ? { ...snippet, expanded: !snippet.expanded } : snippet
       )
     );
   };
-  
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setSearchQuery(e.target.value);
   };
 
-  const handleSearchKeyPress = (e: React.KeyboardEvent<HTMLInputElement>): void => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-    }
-  };
-
-  const filteredSnippets = snippets.filter(
-    (snippet) =>
-      snippet.title.toLowerCase().includes(searchQuery.toLowerCase()) 
-    
+  const filteredSnippets = snippets.filter((snippet) =>
+    snippet.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -108,13 +101,11 @@ export const Popup: React.FC = () => {
         <div className="flex items-center justify-between mt-4">
           <h3 className="text-lg font-semibold mb-2 px-2">Saved Snippets:</h3>
           <div className="relative flex w-full items-center">
-           {/* search snippet  */}
             <input
               type="text"
               placeholder="Search snippets..."
               value={searchQuery}
               onChange={handleSearchChange}
-              onKeyPress={handleSearchKeyPress}
               className="w-full border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 p-2"
             />
             <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />

@@ -1,0 +1,1 @@
+chrome.runtime.onInstalled.addListener(()=>{console.log("Leetcode Snippeter extension installed!")});chrome.runtime.onMessage.addListener((e,t,n)=>{if(e.action==="getSnippet"){console.log(t);const s=e.word;return chrome.storage.local.get("LeetcodeSnippeter",i=>{const o=i.snippets||[];console.log(o);const r=o.find(c=>c.title.toLowerCase()===s.toLowerCase());n({snippet:r})}),!0}});

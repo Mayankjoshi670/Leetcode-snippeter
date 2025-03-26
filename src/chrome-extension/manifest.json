@@ -12,5 +12,11 @@
   "32": "public/32.png",
   "48": "public/48.png",
   "192": "public/192.png"
-}
+},
+"background": {
+  "service_worker": "background.js",
+  "type": "module",
+  "persistent": true
+},
+"permissions": ["storage", "activeTab", "scripting"]
 }
