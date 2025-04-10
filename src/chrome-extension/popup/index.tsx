@@ -16,9 +16,9 @@ export const Popup = () => {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    chrome.storage.local.get("LeetcodeSnippeter", (data) => {
-      if (data.LeetcodeSnippeter) {
-        setSnippets(data.LeetcodeSnippeter);
+    chrome.storage.local.get("snippets", (data) => {
+      if (data.snippets) {
+        setSnippets(data.snippets);
       }
     });
   }, []);
@@ -28,15 +28,30 @@ export const Popup = () => {
   }, []);
 
   const handleSave = useCallback(() => {
-    if (!snippetTitle.trim() || !codeSnippet.trim()) {
-      alert("Both fields are required!");
+    const title = snippetTitle.trim();
+    const code = codeSnippet.trim();
+
+    if (!title || !code) {
+      alert("Both title and code are required!");
       return;
     }
 
-    const newSnippet: Snippet = { title: snippetTitle, snippet: codeSnippet };
+    // Check for duplicate titles
+    if (snippets.some(s => s.title.toLowerCase() === title.toLowerCase())) {
+      alert("A snippet with this title already exists!");
+      return;
+    }
+
+    // Validate title format (alphanumeric and hyphens only)
+    if (!/^[\w-]+$/.test(title)) {
+      alert("Title can only contain letters, numbers, and hyphens!");
+      return;
+    }
+
+    const newSnippet: Snippet = { title, snippet: code };
     const updatedSnippets = [...snippets, newSnippet];
 
-    chrome.storage.local.set({ LeetcodeSnippeter: updatedSnippets }, () => {
+    chrome.storage.local.set({ snippets: updatedSnippets }, () => {
       setSnippets(updatedSnippets);
       setSnippetTitle("");
       setCodeSnippet("");
