@@ -97,9 +97,12 @@ function insertSnippet(snippet) {
     return;
   }
 
-  sendToInjected('INSERT_SNIPPET', {
-    snippet: snippet.code  // FIXED this line
-  });
+  // sendToInjected('INSERT_SNIPPET', {
+  //   snippet: snippet.code  // FIXED this line
+  // });
+
+  sendToInjected('INSERT_SNIPPET', snippet.code);  // ✅ just send the code string
+
 
   if (suggestionBox) {
     suggestionBox.style.display = 'none';
