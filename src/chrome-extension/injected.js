@@ -1,4 +1,3 @@
- 
 // This script runs in the page context and has access to the Monaco editor
 console.log('LeetCode Snippeter: Injected script loaded');
 
@@ -55,26 +54,7 @@ function getCurrentWord() {
 
  
 
-// function insertSnippet(snippetText) {
-//   try {
-//     if (!snippetText || typeof snippetText !== 'string') {
-//       console.warn('LeetCode Snippeter: snippetText is not valid:', snippetText);
-//       return;
-//     }
-
-//     const editor = monaco.editor.getEditors?.()?.[0];
-//     if (!editor) return;
-
-//     const snippetController = editor.getContribution('snippetController2');
-
-//     // Optional: Transform snippet for tab stops
-//     const transformedSnippet = snippetText.replace(/(\$[0-9]+)/g, '\\$1');
-
-//     snippetController.insert(transformedSnippet);
-//   } catch (e) {
-//     console.error('LeetCode Snippeter: Error inserting snippet:', e);
-//   }
-// }
+ 
 
 
 
