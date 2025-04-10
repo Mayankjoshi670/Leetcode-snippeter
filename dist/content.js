@@ -4,7 +4,44 @@ console.log('LeetCode Snippeter: Content script loaded');
 let snippets = [];
 let suggestionBox = null;
 let currentWord = '';
-let activeElement = null;
+
+// Inject script into page context
+function injectScript() {
+  const script = document.createElement('script');
+  script.src = chrome.runtime.getURL('injected.js');
+  (document.head || document.documentElement).appendChild(script);
+  script.onload = () => {
+    script.remove();
+  };
+}
+
+// Send message to injected script
+function sendToInjected(action, data) {
+  window.postMessage({
+    type: 'LEETCODE_SNIPPETER',
+    action,
+    data
+  }, '*');
+}
+
+// Listen for messages from injected script
+window.addEventListener('message', (event) => {
+  if (event.data.type !== 'LEETCODE_SNIPPETER_RESPONSE') return;
+  
+  switch (event.data.action) {
+    case 'CURRENT_WORD':
+      if (event.data.data) {
+        currentWord = event.data.data.word;
+        showSuggestions(currentWord, event.data.data.position);
+      } else {
+        // Hide suggestion box if no word is found
+        if (suggestionBox) {
+          suggestionBox.style.display = 'none';
+        }
+      }
+      break;
+  }
+});
 
 // Load snippets from storage
 function loadSnippets() {
@@ -53,9 +90,27 @@ function createSuggestionBox() {
   return box;
 }
 
+// Insert snippet into editor
+function insertSnippet(snippet) {
+  if (!snippet || typeof snippet.code !== 'string') {
+    console.error('LeetCode Snippeter: snippetText is not valid:', snippet);
+    return;
+  }
+
+  sendToInjected('INSERT_SNIPPET', {
+    snippet: snippet.code  // FIXED this line
+  });
+
+  if (suggestionBox) {
+    suggestionBox.style.display = 'none';
+  }
+}
+
+
+
 // Show suggestions based on current word
-function showSuggestions(word, element) {
-  if (!word || !snippets || snippets.length === 0 || !element) {
+function showSuggestions(word, position) {
+  if (!word || !snippets || snippets.length === 0) {
     if (suggestionBox) {
       suggestionBox.style.display = 'none';
     }
@@ -79,11 +134,20 @@ function showSuggestions(word, element) {
   }
 
   // Position the box near the cursor
-  const rect = element.getBoundingClientRect();
-  const caretCoords = getCaretCoordinates(element);
-  
-  suggestionBox.style.left = `${rect.left + caretCoords.left}px`;
-  suggestionBox.style.top = `${rect.top + caretCoords.top + 20}px`;
+  const editorElement = document.querySelector('.monaco-editor');
+  if (editorElement && position) {
+    const editorRect = editorElement.getBoundingClientRect();
+    const lineHeight = 19; // Default Monaco editor line height
+    const charWidth = 8; // Approximate character width
+    
+    // Calculate position based on line and column
+    const top = editorRect.top + ((position.lineNumber - 1) * lineHeight);
+    const left = editorRect.left + (position.column * charWidth);
+    
+    // Ensure the box stays within viewport
+    suggestionBox.style.left = `${Math.min(left, window.innerWidth - 300)}px`;
+    suggestionBox.style.top = `${top + lineHeight + 5}px`; // Place below the current line
+  }
 
   // Show matching snippets
   suggestionBox.innerHTML = matchingSnippets.map((snippet, index) => `
@@ -118,117 +182,39 @@ function showSuggestions(word, element) {
     document.head.appendChild(style);
   }
 
-  // Add click handlers to suggestion items
-  suggestionBox.querySelectorAll('.suggestion-item').forEach((item, index) => {
+  suggestionBox.querySelectorAll('.suggestion-item').forEach((item) => {
     item.addEventListener('click', () => {
+      const index = parseInt(item.getAttribute('data-index'));
       const snippet = matchingSnippets[index];
-      insertSnippet(snippet, element);
+      insertSnippet(snippet);
     });
   });
-}
 
-// Get caret coordinates in a text element
-function getCaretCoordinates(element) {
-  const position = getCaretPosition(element);
-  const dummy = document.createElement('span');
-  const text = element.value || element.textContent;
   
-  dummy.style.cssText = getComputedStyle(element).cssText;
-  dummy.style.height = 'auto';
-  dummy.style.position = 'absolute';
-  dummy.style.whiteSpace = 'pre-wrap';
-  dummy.textContent = text.substring(0, position);
-  
-  const span = document.createElement('span');
-  span.textContent = text.substring(position) || '.';
-  dummy.appendChild(span);
-  
-  document.body.appendChild(dummy);
-  const coordinates = {
-    top: span.offsetTop,
-    left: span.offsetLeft
-  };
-  document.body.removeChild(dummy);
-  
-  return coordinates;
-}
-
-// Get caret position in a text element
-function getCaretPosition(element) {
-  if (element.selectionStart !== undefined) {
-    return element.selectionStart;
-  }
-  if (window.getSelection) {
-    element.focus();
-    const range = window.getSelection().getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(element);
-    preCaretRange.setEnd(range.endContainer, range.endOffset);
-    return preCaretRange.toString().length;
-  }
-  return 0;
-}
-
-// Insert snippet into editor
-function insertSnippet(snippet, element) {
-  if (!element) return;
-
-  const start = getCaretPosition(element) - currentWord.length;
-  const text = element.value || element.textContent;
-  const newText = text.slice(0, start) + snippet.snippet + text.slice(start + currentWord.length);
-
-  if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-    element.value = newText;
-  } else {
-    element.textContent = newText;
-  }
-
-  // Hide suggestion box
-  if (suggestionBox) {
-    suggestionBox.style.display = 'none';
-  }
-
-  currentWord = '';
-  element.focus();
 }
 
 // Setup editor integration
 function setupEditorIntegration() {
   console.log('LeetCode Snippeter: Setting up editor integration');
 
-  // Listen for keyup events on the document
+  // Inject our helper script
+  injectScript();
+
+  // Listen for keyup events
   document.addEventListener('keyup', (event) => {
-    const element = event.target;
-    
-    // Check if we're in an editor element
-    if (!(element instanceof HTMLTextAreaElement) && 
-        !(element instanceof HTMLInputElement) && 
-        !element.isContentEditable) {
+    // Only trigger for alphanumeric keys, space, and backspace
+    if (!/^[a-zA-Z0-9\s]$/.test(event.key) && event.key !== 'Backspace') {
       return;
     }
 
-    // Store the active element
-    activeElement = element;
+    const editorElement = event.target.closest('.monaco-editor');
+    if (!editorElement) return;
 
-    // Get the current word
-    const text = element.value || element.textContent;
-    const position = getCaretPosition(element);
-    let wordStart = position;
-
-    // Find the start of the current word
-    while (wordStart > 0 && /[\w-]/.test(text[wordStart - 1])) {
-      wordStart--;
-    }
-
-    currentWord = text.slice(wordStart, position);
-    
-    // Show suggestions if we have a word
-    if (currentWord) {
-      showSuggestions(currentWord, element);
-    }
+    // Request current word from injected script
+    sendToInjected('GET_CURRENT_WORD');
   });
 
-  // Add click listener to document to hide suggestions when clicking outside
+  // Add click listener to document to hide suggestions
   document.addEventListener('click', (event) => {
     if (suggestionBox && !suggestionBox.contains(event.target)) {
       suggestionBox.style.display = 'none';
@@ -236,17 +222,6 @@ function setupEditorIntegration() {
   });
 
   console.log('LeetCode Snippeter: Editor integration setup completed');
-}
-
-// Function to cleanup resources
-function cleanup() {
-  console.log('LeetCode Snippeter: Cleaning up resources');
-  if (suggestionBox) {
-    suggestionBox.remove();
-    suggestionBox = null;
-  }
-  activeElement = null;
-  currentWord = '';
 }
 
 // Initialize

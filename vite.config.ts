@@ -14,6 +14,7 @@ export default defineConfig({
         { src: "src/chrome-extension/popup.html", dest: "." },
         { src: "src/chrome-extension/options.html", dest: "." },
         { src: "src/chrome-extension/content.js", dest: "." },
+        { src: "src/chrome-extension/injected.js", dest: "." },
       ],
     }),
   ],
