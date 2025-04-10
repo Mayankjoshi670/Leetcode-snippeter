@@ -1,5 +1,5 @@
 import "../global.css";
-import React, { useState, useEffect } from "react";
+import  { useState, useEffect, useCallback } from "react";
 import { FaCopy, FaSearch } from "react-icons/fa";
 import { TbTriangleFilled, TbTriangleInvertedFilled } from "react-icons/tb";
 
@@ -9,11 +9,11 @@ type Snippet = {
   expanded?: boolean;
 };
 
-export const Popup: React.FC = () => {
-  const [snippetTitle, setSnippetTitle] = useState<string>("");
-  const [codeSnippet, setCodeSnippet] = useState<string>("");
+export const Popup = () => {
+  const [snippetTitle, setSnippetTitle] = useState("");
+  const [codeSnippet, setCodeSnippet] = useState("");
   const [snippets, setSnippets] = useState<Snippet[]>([]);
-  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     chrome.storage.local.get("LeetcodeSnippeter", (data) => {
@@ -23,11 +23,11 @@ export const Popup: React.FC = () => {
     });
   }, []);
 
-  const handleCopy = (text: string): void => {
+  const handleCopy = useCallback((text: string) => {
     navigator.clipboard.writeText(text);
-  };
+  }, []);
 
-  const handleSave = (): void => {
+  const handleSave = useCallback(() => {
     if (!snippetTitle.trim() || !codeSnippet.trim()) {
       alert("Both fields are required!");
       return;
@@ -41,19 +41,15 @@ export const Popup: React.FC = () => {
       setSnippetTitle("");
       setCodeSnippet("");
     });
-  };
+  }, [snippetTitle, codeSnippet, snippets]);
 
-  const toggleSnippet = (index: number): void => {
+  const toggleSnippet = useCallback((index: number) => {
     setSnippets((prev) =>
       prev.map((snippet, i) =>
         i === index ? { ...snippet, expanded: !snippet.expanded } : snippet
       )
     );
-  };
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
-    setSearchQuery(e.target.value);
-  };
+  }, []);
 
   const filteredSnippets = snippets.filter((snippet) =>
     snippet.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -78,7 +74,7 @@ export const Popup: React.FC = () => {
               onChange={(e) => setCodeSnippet(e.target.value)}
               className="p-3 flex-grow border border-gray-300 rounded-md resize-none"
               rows={3}
-            ></textarea>
+            />
             <div className="flex flex-col items-center justify-center">
               <button
                 onClick={() => handleCopy(codeSnippet)}
@@ -95,6 +91,7 @@ export const Popup: React.FC = () => {
             </div>
           </div>
         </div>
+
         <div className="flex items-center justify-between mt-4">
           <h3 className="text-lg font-semibold mb-2 px-2">Saved Snippets:</h3>
           <div className="relative flex w-full items-center">
@@ -102,19 +99,17 @@ export const Popup: React.FC = () => {
               type="text"
               placeholder="Search snippets..."
               value={searchQuery}
-              onChange={handleSearchChange}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full border border-black rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 p-2"
             />
             <FaSearch className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
           </div>
         </div>
+
         <div className="mt-4 overflow-y-auto">
           {filteredSnippets.length > 0 ? (
             filteredSnippets.map((snippet, index) => (
-              <div
-                key={index}
-                className="p-4 border border-gray-300 rounded-md mb-2"
-              >
+              <div key={index} className="p-4 border border-gray-300 rounded-md mb-2">
                 <div
                   className="flex justify-between items-center cursor-pointer"
                   onClick={() => toggleSnippet(index)}

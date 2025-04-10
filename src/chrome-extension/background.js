@@ -14,6 +14,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     chrome.storage.local.get(['snippets'], (result) => {
       sendResponse({ snippets: result.snippets || [] });
     });
-    return true; // Will respond asynchronously
+    return true;  
   }
 }); 

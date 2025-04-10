@@ -1,7 +1,10 @@
 // Content script for LeetCode editor integration
+console.log('LeetCode Snippeter: Content script loaded');
+
 let snippets = [];
 let isExtensionContextValid = true;
-let monacoProvider = null;
+let suggestionBox = null;
+let currentSuggestionIndex = -1;
 
 // Function to check if extension context is valid
 function checkExtensionContext() {
@@ -9,6 +12,7 @@ function checkExtensionContext() {
     chrome.runtime.getURL('');
     return true;
   } catch (e) {
+    console.error('LeetCode Snippeter: Extension context invalid:', e);
     return false;
   }
 }
@@ -17,12 +21,14 @@ function checkExtensionContext() {
 function loadSnippets() {
   if (!isExtensionContextValid) return;
   
+  console.log('LeetCode Snippeter: Loading snippets from storage');
   chrome.storage.local.get(['snippets'], (result) => {
     if (chrome.runtime.lastError) {
-      console.error('Error loading snippets:', chrome.runtime.lastError);
+      console.error('LeetCode Snippeter: Error loading snippets:', chrome.runtime.lastError);
       return;
     }
     snippets = result.snippets || [];
+    console.log('LeetCode Snippeter: Loaded snippets:', snippets);
   });
 }
 
@@ -30,104 +36,160 @@ function loadSnippets() {
 function setupStorageListener() {
   if (!isExtensionContextValid) return;
   
+  console.log('LeetCode Snippeter: Setting up storage listener');
   chrome.storage.onChanged.addListener((changes) => {
     if (changes.snippets) {
       snippets = changes.snippets.newValue || [];
+      console.log('LeetCode Snippeter: Snippets updated:', snippets);
     }
   });
 }
 
-// Function to setup Monaco integration
-function setupMonacoIntegration() {
-  if (!isExtensionContextValid) return;
-  
-  // Wait for Monaco to be available
-  const waitForMonaco = setInterval(() => {
-    if (!isExtensionContextValid) {
-      clearInterval(waitForMonaco);
-      return;
-    }
-
-    if (window.monaco) {
-      clearInterval(waitForMonaco);
-      
-      try {
-        // Get all editor instances
-        const editors = window.monaco.editor.getEditors();
-        if (!editors.length) {
-          console.log('No Monaco editor instances found');
-          return;
-        }
-        
-        console.log('Found Monaco editor, setting up completion provider');
-        
-        // Unregister existing provider if any
-        if (monacoProvider) {
-          monacoProvider.dispose();
-        }
-        
-        // Register our custom completion provider
-        monacoProvider = window.monaco.languages.registerCompletionItemProvider(['javascript', 'python', 'java', 'cpp'], {
-          triggerCharacters: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'],
-          provideCompletionItems: function(model, position) {
-            if (!isExtensionContextValid) {
-              return Promise.resolve({ suggestions: [] });
-            }
-
-            const word = model.getWordUntilPosition(position);
-            const range = {
-              startLineNumber: position.lineNumber,
-              endLineNumber: position.lineNumber,
-              startColumn: word.startColumn,
-              endColumn: word.endColumn
-            };
-            
-            // Get snippets from storage
-            return new Promise((resolve) => {
-              chrome.storage.local.get(['snippets'], (result) => {
-                if (chrome.runtime.lastError) {
-                  console.error('Error getting snippets:', chrome.runtime.lastError);
-                  resolve({ suggestions: [] });
-                  return;
-                }
-                
-                const snippets = result.snippets || [];
-                const suggestions = snippets
-                  .filter(snippet => snippet.title.toLowerCase().includes(word.word.toLowerCase()))
-                  .map(snippet => ({
-                    label: snippet.title,
-                    kind: window.monaco.languages.CompletionItemKind.Snippet,
-                    insertText: snippet.code,
-                    range: range,
-                    detail: 'Leetcode Snippeter',
-                    insertTextRules: window.monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-                    documentation: snippet.code
-                  }));
-                resolve({ suggestions });
-              });
-            });
-          }
-        });
-
-        // Add custom commands to Monaco
-        window.monaco.editor.addCommand(window.monaco.KeyMod.CtrlCmd | window.monaco.KeyCode.Space, function() {
-          if (!isExtensionContextValid) return;
-          const editor = window.monaco.editor.getEditors()[0];
-          if (editor) {
-            editor.trigger('keyboard', 'editor.action.triggerSuggest', {});
-          }
-        });
-        
-        console.log('Completion provider registered successfully');
-      } catch (error) {
-        console.error('Error setting up Monaco integration:', error);
-      }
-    }
-  }, 100);
+// Create suggestion box element
+function createSuggestionBox() {
+  console.log('LeetCode Snippeter: Creating suggestion box');
+  const box = document.createElement('div');
+  box.className = 'leetcode-snippeter-suggestion-box';
+  box.style.cssText = `
+    position: fixed;
+    background: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 999999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    display: none;
+    padding: 8px;
+    min-width: 200px;
+    max-width: 400px;
+  `;
+  return box;
 }
 
-// Function to detect when Monaco Editor is loaded
-function detectMonacoEditor() {
+// Show suggestions
+function showSuggestions(event) {
+  console.log('LeetCode Snippeter: Showing suggestions');
+  
+  // Don't show if there are no snippets
+  if (!snippets || snippets.length === 0) {
+    console.log('LeetCode Snippeter: No snippets available');
+    return;
+  }
+  
+  if (!suggestionBox) {
+    suggestionBox = createSuggestionBox();
+    document.body.appendChild(suggestionBox);
+  }
+  
+  // Position the box near the click
+  suggestionBox.style.left = `${event.clientX}px`;
+  suggestionBox.style.top = `${event.clientY + 20}px`;
+  
+  // Show all snippets with just titles
+  suggestionBox.innerHTML = snippets.map((snippet, index) => `
+    <div class="suggestion-item" data-index="${index}">
+      <div class="snippet-title">${snippet.title}</div>
+      <div class="snippet-preview" style="display: none;">${snippet.code}</div>
+    </div>
+  `).join('');
+  
+  suggestionBox.style.display = 'block';
+  
+  // Add styles for suggestion items
+  const style = document.createElement('style');
+  style.textContent = `
+    .suggestion-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 1px solid #f0f0f0;
+      position: relative;
+    }
+    .suggestion-item:last-child {
+      border-bottom: none;
+    }
+    .suggestion-item:hover {
+      background-color: #f8f9fa;
+    }
+    .snippet-title {
+      font-weight: 500;
+      color: #333;
+      font-size: 14px;
+    }
+    .snippet-preview {
+      position: absolute;
+      left: 100%;
+      top: 0;
+      background: #ffffff;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+      box-shadow: 4px 4px 12px rgba(0,0,0,0.1);
+      padding: 12px;
+      margin-left: 8px;
+      font-size: 13px;
+      color: #666;
+      white-space: pre-wrap;
+      max-width: 300px;
+      z-index: 1000000;
+      display: none;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      line-height: 1.4;
+    }
+    .suggestion-item:hover .snippet-preview {
+      display: block;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // Add click handlers to suggestion items
+  suggestionBox.querySelectorAll('.suggestion-item').forEach((item, index) => {
+    item.addEventListener('click', () => {
+      const snippet = snippets[index];
+      console.log('LeetCode Snippeter: Copying snippet to clipboard:', snippet);
+      
+      // Copy to clipboard
+      navigator.clipboard.writeText(snippet.code).then(() => {
+        // Hide suggestion box
+        suggestionBox.style.display = 'none';
+      });
+    });
+  });
+}
+
+// Function to setup editor integration
+function setupEditorIntegration() {
+  if (!isExtensionContextValid) return;
+  
+  console.log('LeetCode Snippeter: Setting up editor integration');
+  
+  // Find the editor element
+  const editorElement = document.querySelector('.monaco-editor');
+  if (!editorElement) {
+    console.log('LeetCode Snippeter: Editor element not found');
+    return;
+  }
+  
+  console.log('LeetCode Snippeter: Found editor element');
+  
+  // Add click listener to editor
+  editorElement.addEventListener('click', showSuggestions);
+  
+  // Add click listener to document to hide suggestions when clicking outside
+  document.addEventListener('click', (event) => {
+    if (suggestionBox && !suggestionBox.contains(event.target) && !editorElement.contains(event.target)) {
+      suggestionBox.style.display = 'none';
+    }
+  });
+  
+  console.log('LeetCode Snippeter: Editor integration setup completed');
+}
+
+// Function to detect when editor is loaded
+function detectEditor() {
+  console.log('LeetCode Snippeter: Starting editor detection');
+  
   const observer = new MutationObserver((mutations) => {
     if (!isExtensionContextValid) {
       observer.disconnect();
@@ -138,9 +200,10 @@ function detectMonacoEditor() {
       if (mutation.addedNodes.length) {
         const editor = document.querySelector('.monaco-editor');
         if (editor) {
-          // Wait a bit for Monaco to be fully initialized
+          console.log('LeetCode Snippeter: Editor found in DOM');
+          // Wait a bit for editor to be fully initialized
           setTimeout(() => {
-            setupMonacoIntegration();
+            setupEditorIntegration();
           }, 1000);
           observer.disconnect();
         }
@@ -156,15 +219,17 @@ function detectMonacoEditor() {
 
 // Function to cleanup resources
 function cleanup() {
+  console.log('LeetCode Snippeter: Cleaning up resources');
   isExtensionContextValid = false;
-  if (monacoProvider) {
-    monacoProvider.dispose();
-    monacoProvider = null;
+  if (suggestionBox) {
+    suggestionBox.remove();
+    suggestionBox = null;
   }
 }
 
 // Listen for messages from popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  console.log('LeetCode Snippeter: Received message:', request);
   if (request.type === 'GET_SNIPPETS') {
     if (!isExtensionContextValid) {
       sendResponse({ snippets: [] });
@@ -175,9 +240,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 });
 
 // Initialize
+console.log('LeetCode Snippeter: Initializing content script');
 loadSnippets();
 setupStorageListener();
-detectMonacoEditor();
+detectEditor();
 
 // Check extension context periodically
 setInterval(() => {
