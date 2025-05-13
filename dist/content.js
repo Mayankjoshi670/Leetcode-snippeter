@@ -4,6 +4,8 @@ console.log('LeetCode Snippeter: Content script loaded');
 let snippets = [];
 let suggestionBox = null;
 let currentWord = '';
+let sideWindow = null;
+let sideWindowButton = null;
 
 // Inject script into page context
 function injectScript() {
@@ -90,6 +92,204 @@ function createSuggestionBox() {
   return box;
 }
 
+// Create side window button
+function createSideWindowButton() {
+  console.log('LeetCode Snippeter: Creating side window button');
+  const button = document.createElement('button');
+  button.className = 'leetcode-snippeter-side-button';
+  button.innerHTML = 'Snippets';
+  button.style.cssText = `
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #1a90ff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    z-index: 999999;
+    transition: all 0.2s ease;
+  `;
+  
+  // Add hover effect
+  button.addEventListener('mouseover', () => {
+    button.style.backgroundColor = '#0078e7';
+    button.style.transform = 'translateY(-2px)';
+  });
+  
+  button.addEventListener('mouseout', () => {
+    button.style.backgroundColor = '#1a90ff';
+    button.style.transform = 'translateY(0)';
+  });
+  
+  // Add click handler
+  button.addEventListener('click', toggleSideWindow);
+  
+  return button;
+}
+
+// Create side window
+function createSideWindow() {
+  console.log('LeetCode Snippeter: Creating side window');
+  const window = document.createElement('div');
+  window.className = 'leetcode-snippeter-side-window';
+  window.style.cssText = `
+    position: fixed;
+    top: 0;
+    right: -300px;
+    width: 300px;
+    height: 100vh;
+    background-color: white;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    z-index: 999998;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+  `;
+  
+  // Create header
+  const header = document.createElement('div');
+  header.className = 'leetcode-snippeter-side-header';
+  header.style.cssText = `
+    padding: 16px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  `;
+  
+  const title = document.createElement('h3');
+  title.textContent = 'LeetCode Snippeter';
+  title.style.cssText = `
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+  `;
+  
+  const closeButton = document.createElement('button');
+  closeButton.innerHTML = '×';
+  closeButton.style.cssText = `
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+  `;
+  closeButton.addEventListener('click', toggleSideWindow);
+  
+  header.appendChild(title);
+  header.appendChild(closeButton);
+  
+  // Create content
+  const content = document.createElement('div');
+  content.className = 'leetcode-snippeter-side-content';
+  content.style.cssText = `
+    padding: 16px;
+    flex: 1;
+    overflow-y: auto;
+  `;
+  
+  const greeting = document.createElement('div');
+  greeting.textContent = 'Hi there!';
+  greeting.style.cssText = `
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a90ff;
+    margin-bottom: 16px;
+    text-align: center;
+  `;
+  
+  content.appendChild(greeting);
+  
+  // Add snippets list
+  const snippetsList = document.createElement('div');
+  snippetsList.className = 'leetcode-snippeter-snippets-list';
+  snippetsList.style.cssText = `
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  `;
+  
+  // Add snippets to the list
+  snippets.forEach(snippet => {
+    const snippetItem = document.createElement('div');
+    snippetItem.className = 'leetcode-snippeter-snippet-item';
+    snippetItem.style.cssText = `
+      padding: 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    `;
+    
+    const snippetTitle = document.createElement('div');
+    snippetTitle.textContent = snippet.title;
+    snippetTitle.style.cssText = `
+      font-weight: 500;
+      margin-bottom: 4px;
+    `;
+    
+    const snippetPreview = document.createElement('div');
+    snippetPreview.textContent = snippet.code.substring(0, 50) + (snippet.code.length > 50 ? '...' : '');
+    snippetPreview.style.cssText = `
+      font-size: 12px;
+      color: #666;
+      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+      white-space: pre-wrap;
+      overflow: hidden;
+    `;
+    
+    snippetItem.appendChild(snippetTitle);
+    snippetItem.appendChild(snippetPreview);
+    
+    // Add click handler
+    snippetItem.addEventListener('click', () => {
+      insertSnippet(snippet);
+    });
+    
+    // Add hover effect
+    snippetItem.addEventListener('mouseover', () => {
+      snippetItem.style.backgroundColor = '#f8f9fa';
+      snippetItem.style.transform = 'translateY(-2px)';
+    });
+    
+    snippetItem.addEventListener('mouseout', () => {
+      snippetItem.style.backgroundColor = 'white';
+      snippetItem.style.transform = 'translateY(0)';
+    });
+    
+    snippetsList.appendChild(snippetItem);
+  });
+  
+  content.appendChild(snippetsList);
+  
+  window.appendChild(header);
+  window.appendChild(content);
+  
+  return window;
+}
+
+// Toggle side window
+function toggleSideWindow() {
+  if (!sideWindow) {
+    sideWindow = createSideWindow();
+    document.body.appendChild(sideWindow);
+  }
+  
+  if (sideWindow.style.right === '0px') {
+    sideWindow.style.right = '-300px';
+  } else {
+    sideWindow.style.right = '0px';
+  }
+}
+
 // Insert snippet into editor
 function insertSnippet(snippet) {
   if (!snippet || typeof snippet.code !== 'string') {
@@ -97,19 +297,12 @@ function insertSnippet(snippet) {
     return;
   }
 
-  // sendToInjected('INSERT_SNIPPET', {
-  //   snippet: snippet.code  // FIXED this line
-  // });
-
-  sendToInjected('INSERT_SNIPPET', snippet.code);  // ✅ just send the code string
-
+  sendToInjected('INSERT_SNIPPET', snippet.code);
 
   if (suggestionBox) {
     suggestionBox.style.display = 'none';
   }
 }
-
-
 
 // Show suggestions based on current word
 function showSuggestions(word, position) {
@@ -192,8 +385,6 @@ function showSuggestions(word, position) {
       insertSnippet(snippet);
     });
   });
-
-  
 }
 
 // Setup editor integration
@@ -202,6 +393,10 @@ function setupEditorIntegration() {
 
   // Inject our helper script
   injectScript();
+
+  // Add side window button
+  sideWindowButton = createSideWindowButton();
+  document.body.appendChild(sideWindowButton);
 
   // Listen for keyup events
   document.addEventListener('keyup', (event) => {
