@@ -140,8 +140,8 @@ function createSideWindow() {
   window.style.cssText = `
     position: fixed;
     top: 0;
-    right: -300px;
-    width: 300px;
+    right: -400px;
+    width: 400px;
     height: 100vh;
     background-color: white;
     box-shadow: -2px 0 10px rgba(0,0,0,0.1);
@@ -160,15 +160,16 @@ function createSideWindow() {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background-color: #1a90ff;
+    color: white;
   `;
   
   const title = document.createElement('h3');
-  title.textContent = 'LeetCode Snippeter';
+  title.textContent = 'AI Assistant';
   title.style.cssText = `
     margin: 0;
     font-size: 18px;
     font-weight: 600;
-    color: #333;
   `;
   
   const closeButton = document.createElement('button');
@@ -177,7 +178,7 @@ function createSideWindow() {
     background: none;
     border: none;
     font-size: 24px;
-    color: #666;
+    color: white;
     cursor: pointer;
     padding: 0;
     line-height: 1;
@@ -194,81 +195,293 @@ function createSideWindow() {
     padding: 16px;
     flex: 1;
     overflow-y: auto;
-  `;
-  
-  const greeting = document.createElement('div');
-  greeting.textContent = 'Hi there!';
-  greeting.style.cssText = `
-    font-size: 24px;
-    font-weight: 600;
-    color: #1a90ff;
-    margin-bottom: 16px;
-    text-align: center;
-  `;
-  
-  content.appendChild(greeting);
-  
-  // Add snippets list
-  const snippetsList = document.createElement('div');
-  snippetsList.className = 'leetcode-snippeter-snippets-list';
-  snippetsList.style.cssText = `
     display: flex;
     flex-direction: column;
+    gap: 16px;
+  `;
+
+  // Create chat container
+  const chatContainer = document.createElement('div');
+  chatContainer.className = 'leetcode-snippeter-chat';
+  chatContainer.style.cssText = `
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  `;
+
+  // Create input container
+  const inputContainer = document.createElement('div');
+  inputContainer.style.cssText = `
+    padding: 16px;
+    border-top: 1px solid #e0e0e0;
+    display: flex;
     gap: 8px;
   `;
-  
-  // Add snippets to the list
-  snippets.forEach(snippet => {
-    const snippetItem = document.createElement('div');
-    snippetItem.className = 'leetcode-snippeter-snippet-item';
-    snippetItem.style.cssText = `
+
+  const input = document.createElement('textarea');
+  input.placeholder = 'Ask for help, hints, or code correction...';
+  input.style.cssText = `
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    resize: none;
+    height: 40px;
+    font-family: inherit;
+    font-size: 14px;
+  `;
+
+  const sendButton = document.createElement('button');
+  sendButton.innerHTML = 'Send';
+  sendButton.style.cssText = `
+    padding: 8px 16px;
+    background-color: #1a90ff;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+  `;
+
+  // Add welcome message
+  const welcomeMessage = document.createElement('div');
+  welcomeMessage.className = 'leetcode-snippeter-message assistant';
+  welcomeMessage.innerHTML = `
+    <div class="message-content">
+      <p>Hi! I'm your AI coding assistant. I can help you with:</p>
+      <ul>
+        <li>Generating code solutions</li>
+        <li>Providing hints and explanations</li>
+        <li>Correcting and optimizing your code</li>
+      </ul>
+      <p>Just type your question below!</p>
+    </div>
+  `;
+  welcomeMessage.style.cssText = `
+    background-color: #f0f7ff;
+    padding: 12px;
+    border-radius: 8px;
+    max-width: 80%;
+    align-self: flex-start;
+  `;
+
+  chatContainer.appendChild(welcomeMessage);
+
+  // Function to get current question info
+  async function getCurrentQuestionInfo() {
+    try {
+      // Get question name from URL using the top window's location
+      const url = window.top.location.href;
+      let questionName = '';
+      
+      // Extract question name from URL - handle LeetCode URL patterns
+      if (url) {
+        if (url.includes('leetcode.com/problems/')) {
+          const match = url.match(/leetcode\.com\/problems\/([^/]+)/);
+          questionName = match ? match[1].replace(/-/g, ' ') : 'Unknown Problem';
+        } else {
+          const urlParts = url.split('/');
+          questionName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
+        }
+      }
+      
+      console.log('Question from URL:', questionName);
+
+      // Get current code from Monaco editor
+      const codeEditor = document.querySelector('.monaco-editor');
+      let currentCode = '';
+      
+      if (codeEditor) {
+        // Try multiple methods to get the code
+        try {
+          // Method 1: Try to get from Monaco editor instance
+          const editor = codeEditor.__monaco;
+          if (editor && editor.getModel()) {
+            currentCode = editor.getModel().getValue();
+          }
+          
+          // Method 2: Try to get from textarea
+          if (!currentCode) {
+            const textarea = codeEditor.querySelector('textarea');
+            if (textarea) {
+              currentCode = textarea.value;
+            }
+          }
+          
+          // Method 3: Try to get from content
+          if (!currentCode) {
+            currentCode = codeEditor.textContent || '';
+          }
+        } catch (e) {
+          console.error('Error getting code from editor:', e);
+        }
+      }
+      
+      return {
+        questionName: questionName,
+        code: currentCode
+      };
+    } catch (error) {
+      console.error('Error getting question info:', error);
+      return {
+        questionName: 'Unknown Problem',
+        code: ''
+      };
+    }
+  }
+
+  // Function to get API key from storage
+  async function getApiKey() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(['geminiApiKey'], (result) => {
+        if (chrome.runtime.lastError) {
+          console.error('Error getting API key:', chrome.runtime.lastError);
+          resolve(null);
+          return;
+        }
+        
+        const apiKey = result.geminiApiKey;
+        if (!apiKey) {
+          console.error('No API key found in storage');
+          resolve(null);
+          return;
+        }
+        
+        resolve(apiKey);
+      });
+    });
+  }
+
+  // Function to call Google Gemini API
+  async function callGeminiAPI(prompt, context) {
+    try {
+      const API_KEY = await getApiKey();
+      if (!API_KEY) {
+        throw new Error('API key not found. Please set your Google AI API key in the extension options.');
+      }
+
+      // Validate API key format
+      if (!API_KEY.startsWith('AIza')) {
+        throw new Error('Invalid API key format. Please check your Google AI API key.');
+      }
+
+      console.log('Making API call to Gemini...');
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{
+              text: `Context: You are a coding assistant helping with a LeetCode problem.
+
+Problem: ${context.questionName}
+
+Current Code:
+${context.code}
+
+User Question: ${prompt}
+
+Please provide a helpful response focusing on:
+1. Understanding the problem
+2. Providing hints or explanations
+3. Suggesting code improvements
+4. Explaining time and space complexity
+5. Best practices and optimization tips`
+            }]
+          }]
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('API Error Response:', errorData);
+        throw new Error(`API Error: ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      console.log('API Response:', data);
+      
+      if (!data.candidates || !data.candidates[0]?.content?.parts?.[0]?.text) {
+        throw new Error('Invalid response format from API');
+      }
+      return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+      console.error('Error calling Gemini API:', error);
+      throw new Error(`Failed to get response from Gemini API: ${error.message}`);
+    }
+  }
+
+  // Function to add message to chat
+  function addMessage(content, isUser = false) {
+    const message = document.createElement('div');
+    message.className = `leetcode-snippeter-message ${isUser ? 'user' : 'assistant'}`;
+    message.innerHTML = `<div class="message-content">${content}</div>`;
+    message.style.cssText = `
+      background-color: ${isUser ? '#e3f2fd' : '#f0f7ff'};
       padding: 12px;
-      border: 1px solid #e0e0e0;
-      border-radius: 4px;
-      cursor: pointer;
-      transition: all 0.2s ease;
+      border-radius: 8px;
+      max-width: 80%;
+      align-self: ${isUser ? 'flex-end' : 'flex-start'};
     `;
+    chatContainer.appendChild(message);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  // Handle send button click
+  sendButton.addEventListener('click', async () => {
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Add user message
+    addMessage(message, true);
+    input.value = '';
+
+    // Get current question info
+    const questionInfo = await getCurrentQuestionInfo();
+    console.log('Question info:', questionInfo);
     
-    const snippetTitle = document.createElement('div');
-    snippetTitle.textContent = snippet.title;
-    snippetTitle.style.cssText = `
-      font-weight: 500;
-      margin-bottom: 4px;
+    // Add loading message
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'leetcode-snippeter-message assistant loading';
+    loadingMessage.innerHTML = '<div class="message-content">Thinking...</div>';
+    loadingMessage.style.cssText = `
+      background-color: #f0f7ff;
+      padding: 12px;
+      border-radius: 8px;
+      max-width: 80%;
+      align-self: flex-start;
     `;
-    
-    const snippetPreview = document.createElement('div');
-    snippetPreview.textContent = snippet.code.substring(0, 50) + (snippet.code.length > 50 ? '...' : '');
-    snippetPreview.style.cssText = `
-      font-size: 12px;
-      color: #666;
-      font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
-      white-space: pre-wrap;
-      overflow: hidden;
-    `;
-    
-    snippetItem.appendChild(snippetTitle);
-    snippetItem.appendChild(snippetPreview);
-    
-    // Add click handler
-    snippetItem.addEventListener('click', () => {
-      insertSnippet(snippet);
-    });
-    
-    // Add hover effect
-    snippetItem.addEventListener('mouseover', () => {
-      snippetItem.style.backgroundColor = '#f8f9fa';
-      snippetItem.style.transform = 'translateY(-2px)';
-    });
-    
-    snippetItem.addEventListener('mouseout', () => {
-      snippetItem.style.backgroundColor = 'white';
-      snippetItem.style.transform = 'translateY(0)';
-    });
-    
-    snippetsList.appendChild(snippetItem);
+    chatContainer.appendChild(loadingMessage);
+
+    try {
+      const response = await callGeminiAPI(message, questionInfo);
+      loadingMessage.remove();
+      addMessage(response);
+    } catch (error) {
+      console.error('Error in chat:', error);
+      loadingMessage.remove();
+      addMessage(`Error: ${error.message}. Please check your API key in the extension options.`, false);
+    }
   });
+
+  // Handle Enter key in input
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendButton.click();
+    }
+  });
+
+  inputContainer.appendChild(input);
+  inputContainer.appendChild(sendButton);
   
-  content.appendChild(snippetsList);
+  content.appendChild(chatContainer);
+  content.appendChild(inputContainer);
   
   window.appendChild(header);
   window.appendChild(content);
@@ -284,7 +497,7 @@ function toggleSideWindow() {
   }
   
   if (sideWindow.style.right === '0px') {
-    sideWindow.style.right = '-300px';
+    sideWindow.style.right = '-400px';
   } else {
     sideWindow.style.right = '0px';
   }

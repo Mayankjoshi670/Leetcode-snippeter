@@ -1,43 +1,92 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Leetcode Snippeter Options</title>
+  <title>LeetCode Snippeter Options</title>
   <style>
     body {
       padding: 20px;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    }
-    .container {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
       max-width: 600px;
       margin: 0 auto;
     }
     h1 {
-      color: #1a73e8;
+      color: #1a90ff;
       margin-bottom: 20px;
     }
-    .info {
-      background: #f8f9fa;
+    .form-group {
+      margin-bottom: 20px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    button {
+      background-color: #1a90ff;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    button:hover {
+      background-color: #0078e7;
+    }
+    .status {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      display: none;
+    }
+    .success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+    }
+    .error {
+      background-color: #ffebee;
+      color: #c62828;
+    }
+    .instructions {
+      background-color: #f5f5f5;
       padding: 15px;
       border-radius: 4px;
       margin-bottom: 20px;
     }
+    .instructions ol {
+      margin: 0;
+      padding-left: 20px;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Leetcode Snippeter Options</h1>
-    <div class="info">
-      <p>This extension helps you save and manage code snippets while solving problems on LeetCode.</p>
-      <p>Features:</p>
-      <ul>
-        <li>Save code snippets with custom titles</li>
-        <li>Search and filter saved snippets</li>
-        <li>Auto-completion in LeetCode editor</li>
-        <li>Copy snippets to clipboard</li>
-        <li>Delete unwanted snippets</li>
-      </ul>
-    </div>
+  <h1>LeetCode Snippeter Options</h1>
+  
+  <div class="instructions">
+    <h3>How to get your Google AI API key:</h3>
+    <ol>
+      <li>Go to the <a href="https://makersuite.google.com/app/apikey" target="_blank">Google AI Studio</a></li>
+      <li>Sign in with your Google account</li>
+      <li>Click "Create API Key"</li>
+      <li>Copy your API key and paste it below</li>
+    </ol>
   </div>
+
+  <div class="form-group">
+    <label for="apiKey">Google AI API Key:</label>
+    <input type="text" id="apiKey" placeholder="Enter your API key">
+  </div>
+
+  <button id="save">Save</button>
+  <div id="status" class="status"></div>
+
   <script src="options.js"></script>
 </body>
 </html> 
