@@ -628,31 +628,22 @@ function showSuggestions(word, position) {
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
     style.id = styleId;
-  style.textContent = `
-    .suggestion-item {
-      padding: 10px 14px;
-      cursor: pointer;
-      margin: 6px 0;
-      border-radius: 8px;
-      font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
-      background: linear-gradient(145deg, #1e1e1e, #252526);
-      color: #ffffff;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
-      transition: transform 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
-    }
-
-    .suggestion-item:hover {
-      background: linear-gradient(145deg, #2c2c2c, #3a3a3a);
-      transform: scale(1.02);
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
-    }
-
-    .snippet-title {
-      font-size: 14px;
-      color: #c8c8c8;
-      letter-spacing: 0.4px;
-    }
-  `;
+    style.textContent = `
+      .suggestion-item {
+        padding: 6px 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border-radius: 4px;
+        margin: 2px;
+      }
+      .suggestion-item:hover {
+        background-color: #f0f0f0;
+      }
+      .snippet-title {
+        font-size: 13px;
+        color: #333;
+      }
+    `;
     document.head.appendChild(style);
   }
 
