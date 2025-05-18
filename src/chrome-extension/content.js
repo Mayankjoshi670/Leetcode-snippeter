@@ -271,67 +271,123 @@ function createSideWindow() {
   chatContainer.appendChild(welcomeMessage);
 
   // Function to get current question info
-  async function getCurrentQuestionInfo() {
-    try {
-      // Get question name from URL using the top window's location
-      const url = window.top.location.href;
-      let questionName = '';
+  // async function getCurrentQuestionInfo() {
+  //   try {
+  //     // Get question name from URL using the top window's location
+  //     const url = window.top.location.href;
+  //     let questionName = '';
       
-      // Extract question name from URL - handle LeetCode URL patterns
-      if (url) {
-        if (url.includes('leetcode.com/problems/')) {
-          const match = url.match(/leetcode\.com\/problems\/([^/]+)/);
-          questionName = match ? match[1].replace(/-/g, ' ') : 'Unknown Problem';
-        } else {
-          const urlParts = url.split('/');
-          questionName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
-        }
-      }
+  //     // Extract question name from URL - handle LeetCode URL patterns
+  //     if (url) {
+  //       if (url.includes('leetcode.com/problems/')) {
+  //         const match = url.match(/leetcode\.com\/problems\/([^/]+)/);
+  //         questionName = match ? match[1].replace(/-/g, ' ') : 'Unknown Problem';
+  //       } else {
+  //         const urlParts = url.split('/');
+  //         questionName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
+  //       }
+  //     }
       
-      console.log('Question from URL:', questionName);
+  //     console.log('Question from URL:', questionName);
 
-      // Get current code from Monaco editor
-      const codeEditor = document.querySelector('.monaco-editor');
-      let currentCode = '';
+  //     // Get current code from Monaco editor
+  //     const codeEditor = document.querySelector('.monaco-editor');
+  //     let currentCode = '';
       
-      if (codeEditor) {
-        // Try multiple methods to get the code
-        try {
-          // Method 1: Try to get from Monaco editor instance
-          const editor = codeEditor.__monaco;
-          if (editor && editor.getModel()) {
-            currentCode = editor.getModel().getValue();
-          }
+  //     if (codeEditor) {
+  //       // Try multiple methods to get the code
+  //       try {
+  //         // Method 1: Try to get from Monaco editor instance
+  //         const editor = codeEditor.__monaco;
+  //         if (editor && editor.getModel()) {
+  //           currentCode = editor.getModel().getValue();
+  //         }
           
-          // Method 2: Try to get from textarea
-          if (!currentCode) {
-            const textarea = codeEditor.querySelector('textarea');
-            if (textarea) {
-              currentCode = textarea.value;
-            }
-          }
+  //         // Method 2: Try to get from textarea
+  //         if (!currentCode) {
+  //           const textarea = codeEditor.querySelector('textarea');
+  //           if (textarea) {
+  //             currentCode = textarea.value;
+  //           }
+  //         }
           
-          // Method 3: Try to get from content
-          if (!currentCode) {
-            currentCode = codeEditor.textContent || '';
-          }
-        } catch (e) {
-          console.error('Error getting code from editor:', e);
-        }
-      }
+  //         // Method 3: Try to get from content
+  //         if (!currentCode) {
+  //           currentCode = codeEditor.textContent || '';
+  //         }
+  //       } catch (e) {
+  //         console.error('Error getting code from editor:', e);
+  //       }
+  //     }
       
-      return {
-        questionName: questionName,
-        code: currentCode
-      };
-    } catch (error) {
-      console.error('Error getting question info:', error);
-      return {
-        questionName: 'Unknown Problem',
-        code: ''
-      };
+  //     return {
+  //       questionName: questionName,
+  //       code: currentCode
+  //     };
+  //   } catch (error) {
+  //     console.error('Error getting question info:', error);
+  //     return {
+  //       questionName: 'Unknown Problem',
+  //       code: ''
+  //     };
+  //   }
+  // }
+
+
+  async function getCurrentQuestionInfo() {
+  try {
+    // Grab the full URL of the current tab
+    const href = window.location.href;
+    let questionName = 'Unknown Problem';
+
+    // Parse out the path segments
+    const urlObj = new URL(href);
+    const segments = urlObj.pathname.split('/').filter(Boolean);
+
+    // If this is a LeetCode problem page, segments[0] === "problems"
+    if (segments[0] === 'problems' && segments[1]) {
+      // segments[1] is the slug, e.g. "two-sum"
+      questionName = segments[1].replace(/-/g, ' ');
     }
+    console.log("dfhkjsdghkdfjghdkfjghdfkjghdfkjghdfjkhy")
+    console.log('Question from URL:', questionName);
+
+    // Now grab the code from the Monaco editor
+    let currentCode = '';
+    // LeetCode’s Monaco editor root container
+    const monacoContainer = document.querySelector('.monaco-editor');
+
+    if (monacoContainer) {
+      try {
+        // Method 1: If they’ve attached the editor instance to the DOM
+        const editor = monacoContainer.__monaco;
+        if (editor && editor.getModel) {
+          currentCode = editor.getModel().getValue();
+        }
+
+        // Method 2: Plain <textarea> fallback
+        if (!currentCode) {
+          const textarea = monacoContainer.querySelector('textarea');
+          if (textarea) {
+            currentCode = textarea.value;
+          }
+        }
+
+        // Method 3: Last resort — grab all text
+        if (!currentCode) {
+          currentCode = monacoContainer.textContent || '';
+        }
+      } catch (e) {
+        console.error('Error reading code from Monaco editor:', e);
+      }
+    }
+
+    return { questionName, code: currentCode };
+  } catch (error) {
+    console.error('Error in getCurrentQuestionInfo:', error);
+    return { questionName: 'Unknown Problem', code: '' };
   }
+}
 
   // Function to get API key from storage
   async function getApiKey() {
@@ -572,22 +628,31 @@ function showSuggestions(word, position) {
   if (!document.getElementById(styleId)) {
     const style = document.createElement('style');
     style.id = styleId;
-    style.textContent = `
-      .suggestion-item {
-        padding: 6px 8px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        border-radius: 4px;
-        margin: 2px;
-      }
-      .suggestion-item:hover {
-        background-color: #f0f0f0;
-      }
-      .snippet-title {
-        font-size: 13px;
-        color: #333;
-      }
-    `;
+  style.textContent = `
+    .suggestion-item {
+      padding: 10px 14px;
+      cursor: pointer;
+      margin: 6px 0;
+      border-radius: 8px;
+      font-family: 'Fira Code', 'Consolas', 'Courier New', monospace;
+      background: linear-gradient(145deg, #1e1e1e, #252526);
+      color: #ffffff;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+      transition: transform 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .suggestion-item:hover {
+      background: linear-gradient(145deg, #2c2c2c, #3a3a3a);
+      transform: scale(1.02);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+    }
+
+    .snippet-title {
+      font-size: 14px;
+      color: #c8c8c8;
+      letter-spacing: 0.4px;
+    }
+  `;
     document.head.appendChild(style);
   }
 
