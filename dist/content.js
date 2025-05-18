@@ -7,6 +7,9 @@ let currentWord = '';
 let sideWindow = null;
 let sideWindowButton = null;
 
+// Add chat history tracking
+let chatHistory = [];
+
 // Inject script into page context
 function injectScript() {
   const script = document.createElement('script');
@@ -185,8 +188,35 @@ function createSideWindow() {
   `;
   closeButton.addEventListener('click', toggleSideWindow);
   
+  // Add clear chat button to header
+  const clearButton = document.createElement('button');
+  clearButton.innerHTML = 'Clear Chat';
+  clearButton.style.cssText = `
+    background: none;
+    border: 1px solid #ffffff;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    margin-left: 8px;
+    transition: all 0.2s ease;
+  `;
+  clearButton.addEventListener('mouseover', () => {
+    clearButton.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
+  });
+  clearButton.addEventListener('mouseout', () => {
+    clearButton.style.backgroundColor = 'transparent';
+  });
+  clearButton.addEventListener('click', () => {
+    clearChatHistory();
+    chatContainer.innerHTML = '';
+    chatContainer.appendChild(welcomeMessage);
+  });
+  
   header.appendChild(title);
   header.appendChild(closeButton);
+  header.appendChild(clearButton);
   
   // Create content
   const content = document.createElement('div');
@@ -210,29 +240,43 @@ function createSideWindow() {
     display: flex;
     flex-direction: column;
     gap: 12px;
+    background-color: #1a1a1a;
+    color: #ffffff;
   `;
 
   // Create input container
   const inputContainer = document.createElement('div');
   inputContainer.style.cssText = `
     padding: 16px;
-    border-top: 1px solid #e0e0e0;
+    border-top: 1px solid #333;
     display: flex;
     gap: 8px;
+    background-color: #1a1a1a;
   `;
 
   const input = document.createElement('textarea');
   input.placeholder = 'Ask for help, hints, or code correction...';
   input.style.cssText = `
     flex: 1;
-    padding: 8px 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
+    padding: 12px;
+    border: 1px solid #333;
+    border-radius: 6px;
     resize: none;
     height: 40px;
     font-family: inherit;
     font-size: 14px;
+    background-color: #2a2a2a;
+    color: #ffffff;
+    transition: border-color 0.2s ease;
   `;
+
+  input.addEventListener('focus', () => {
+    input.style.borderColor = '#1a90ff';
+  });
+
+  input.addEventListener('blur', () => {
+    input.style.borderColor = '#333';
+  });
 
   const sendButton = document.createElement('button');
   sendButton.innerHTML = 'Send';
@@ -241,10 +285,19 @@ function createSideWindow() {
     background-color: #1a90ff;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 6px;
     cursor: pointer;
     font-weight: 500;
+    transition: background-color 0.2s ease;
   `;
+
+  sendButton.addEventListener('mouseover', () => {
+    sendButton.style.backgroundColor = '#0078e7';
+  });
+
+  sendButton.addEventListener('mouseout', () => {
+    sendButton.style.backgroundColor = '#1a90ff';
+  });
 
   // Add welcome message
   const welcomeMessage = document.createElement('div');
@@ -258,136 +311,121 @@ function createSideWindow() {
         <li>Correcting and optimizing your code</li>
       </ul>
       <p>Just type your question below!</p>
+      <p><small>Note: I'll remember our conversation to provide better context-aware responses.</small></p>
     </div>
   `;
   welcomeMessage.style.cssText = `
-    background-color: #f0f7ff;
-    padding: 12px;
+    background-color: #2a2a2a;
+    padding: 16px;
     border-radius: 8px;
     max-width: 80%;
     align-self: flex-start;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   `;
 
   chatContainer.appendChild(welcomeMessage);
 
-  // Function to get current question info
-  // async function getCurrentQuestionInfo() {
-  //   try {
-  //     // Get question name from URL using the top window's location
-  //     const url = window.top.location.href;
-  //     let questionName = '';
-      
-  //     // Extract question name from URL - handle LeetCode URL patterns
-  //     if (url) {
-  //       if (url.includes('leetcode.com/problems/')) {
-  //         const match = url.match(/leetcode\.com\/problems\/([^/]+)/);
-  //         questionName = match ? match[1].replace(/-/g, ' ') : 'Unknown Problem';
-  //       } else {
-  //         const urlParts = url.split('/');
-  //         questionName = urlParts[urlParts.length - 1].replace(/-/g, ' ');
-  //       }
-  //     }
-      
-  //     console.log('Question from URL:', questionName);
-
-  //     // Get current code from Monaco editor
-  //     const codeEditor = document.querySelector('.monaco-editor');
-  //     let currentCode = '';
-      
-  //     if (codeEditor) {
-  //       // Try multiple methods to get the code
-  //       try {
-  //         // Method 1: Try to get from Monaco editor instance
-  //         const editor = codeEditor.__monaco;
-  //         if (editor && editor.getModel()) {
-  //           currentCode = editor.getModel().getValue();
-  //         }
-          
-  //         // Method 2: Try to get from textarea
-  //         if (!currentCode) {
-  //           const textarea = codeEditor.querySelector('textarea');
-  //           if (textarea) {
-  //             currentCode = textarea.value;
-  //           }
-  //         }
-          
-  //         // Method 3: Try to get from content
-  //         if (!currentCode) {
-  //           currentCode = codeEditor.textContent || '';
-  //         }
-  //       } catch (e) {
-  //         console.error('Error getting code from editor:', e);
-  //       }
-  //     }
-      
-  //     return {
-  //       questionName: questionName,
-  //       code: currentCode
-  //     };
-  //   } catch (error) {
-  //     console.error('Error getting question info:', error);
-  //     return {
-  //       questionName: 'Unknown Problem',
-  //       code: ''
-  //     };
-  //   }
-  // }
-
-
   async function getCurrentQuestionInfo() {
-  try {
-    // Grab the full URL of the current tab
-    const href = window.location.href;
-    let questionName = 'Unknown Problem';
+    try {
+      // Grab the full URL of the current tab
+      const href = window.location.href;
+      let questionName = 'Unknown Problem';
 
-    // Parse out the path segments
-    const urlObj = new URL(href);
-    const segments = urlObj.pathname.split('/').filter(Boolean);
+      // Parse out the path segments
+      const urlObj = new URL(href);
+      const segments = urlObj.pathname.split('/').filter(Boolean);
 
-    // If this is a LeetCode problem page, segments[0] === "problems"
-    if (segments[0] === 'problems' && segments[1]) {
-      // segments[1] is the slug, e.g. "two-sum"
-      questionName = segments[1].replace(/-/g, ' ');
-    }
-    console.log("dfhkjsdghkdfjghdkfjghdfkjghdfkjghdfjkhy")
-    console.log('Question from URL:', questionName);
+      // If this is a LeetCode problem page, segments[0] === "problems"
+      if (segments[0] === 'problems' && segments[1]) {
+        // segments[1] is the slug, e.g. "two-sum"
+        questionName = segments[1].replace(/-/g, ' ');
+      }
 
-    // Now grab the code from the Monaco editor
-    let currentCode = '';
-    // LeetCode’s Monaco editor root container
-    const monacoContainer = document.querySelector('.monaco-editor');
+      // Get code from Monaco editor using a more reliable method
+      return new Promise((resolve) => {
+        const script = document.createElement('script');
+        script.textContent = `
+          (function() {
+            try {
+              // Try multiple methods to get the editor
+              let editor = null;
+              
+              // Method 1: Direct access to Monaco instance
+              if (window.monaco && window.monaco.editor) {
+                const models = window.monaco.editor.getModels();
+                if (models && models.length > 0) {
+                  editor = models[0];
+                }
+              }
+              
+              // Method 2: Access through the editor container
+              if (!editor) {
+                const editorContainer = document.querySelector('.monaco-editor');
+                if (editorContainer && editorContainer.__monaco) {
+                  editor = editorContainer.__monaco;
+                }
+              }
+              
+              // Method 3: Access through the editor instance
+              if (!editor) {
+                const editorElement = document.querySelector('.monaco-editor');
+                if (editorElement) {
+                  const editorInstance = editorElement.querySelector('.monaco-editor-background');
+                  if (editorInstance && editorInstance.__monaco) {
+                    editor = editorInstance.__monaco;
+                  }
+                }
+              }
 
-    if (monacoContainer) {
-      try {
-        // Method 1: If they’ve attached the editor instance to the DOM
-        const editor = monacoContainer.__monaco;
-        if (editor && editor.getModel) {
-          currentCode = editor.getModel().getValue();
-        }
+              if (!editor) {
+                window.postMessage({ type: 'MONACO_CODE', error: 'Could not find Monaco editor instance' }, '*');
+                return;
+              }
 
-        // Method 2: Plain <textarea> fallback
-        if (!currentCode) {
-          const textarea = monacoContainer.querySelector('textarea');
-          if (textarea) {
-            currentCode = textarea.value;
+              // Get the code using the editor instance
+              const code = editor.getValue();
+              if (!code) {
+                window.postMessage({ type: 'MONACO_CODE', error: 'Could not get code from editor' }, '*');
+                return;
+              }
+
+              window.postMessage({ type: 'MONACO_CODE', code }, '*');
+            } catch (error) {
+              console.error('Monaco access error:', error);
+              window.postMessage({ type: 'MONACO_CODE', error: error.message }, '*');
+            }
+          })();
+        `;
+        (document.head || document.documentElement).appendChild(script);
+        script.remove();
+
+        // Set a timeout to handle cases where we don't get a response
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', handler);
+          resolve({ questionName, code: '' });
+        }, 2000);
+
+        function handler(event) {
+          if (event.data.type === 'MONACO_CODE') {
+            clearTimeout(timeout);
+            window.removeEventListener('message', handler);
+            if (event.data.error) {
+              console.error('Error getting code from Monaco:', event.data.error);
+              resolve({ questionName, code: '' });
+            } else {
+              resolve({ questionName, code: event.data.code });
+            }
           }
         }
 
-        // Method 3: Last resort — grab all text
-        if (!currentCode) {
-          currentCode = monacoContainer.textContent || '';
-        }
-      } catch (e) {
-        console.error('Error reading code from Monaco editor:', e);
-      }
+        window.addEventListener('message', handler);
+      });
+    } catch (error) {
+      console.error('Error in getCurrentQuestionInfo:', error);
+      return { questionName: 'Unknown Problem', code: '' };
     }
-
-    return { questionName, code: currentCode };
-  } catch (error) {
-    console.error('Error in getCurrentQuestionInfo:', error);
-    return { questionName: 'Unknown Problem', code: '' };
   }
-}
 
   // Function to get API key from storage
   async function getApiKey() {
@@ -409,6 +447,13 @@ function createSideWindow() {
         resolve(apiKey);
       });
     });
+  }
+
+  // Function to format chat history for LLM
+  function formatChatHistory() {
+    return chatHistory.map(msg => {
+      return `${msg.role === 'user' ? 'User' : 'Assistant'}: ${msg.content}`;
+    }).join('\n\n');
   }
 
   // Function to call Google Gemini API
@@ -440,6 +485,9 @@ Problem: ${context.questionName}
 Current Code:
 ${context.code}
 
+Chat History:
+${formatChatHistory()}
+
 User Question: ${prompt}
 
 Please provide a helpful response focusing on:
@@ -447,7 +495,9 @@ Please provide a helpful response focusing on:
 2. Providing hints or explanations
 3. Suggesting code improvements
 4. Explaining time and space complexity
-5. Best practices and optimization tips`
+5. Best practices and optimization tips
+
+Remember to maintain context from the previous conversation.`
             }]
           }]
         })
@@ -472,20 +522,138 @@ Please provide a helpful response focusing on:
     }
   }
 
-  // Function to add message to chat
+  // Function to add message to chat with proper formatting
   function addMessage(content, isUser = false) {
+    // Add message to chat history
+    chatHistory.push({
+      role: isUser ? 'user' : 'assistant',
+      content: content,
+      timestamp: new Date().toISOString()
+    });
+
     const message = document.createElement('div');
     message.className = `leetcode-snippeter-message ${isUser ? 'user' : 'assistant'}`;
-    message.innerHTML = `<div class="message-content">${content}</div>`;
+    
+    // Format the content to handle markdown-like syntax
+    const formattedContent = content
+      // Handle headers
+      .replace(/^#+\s+(.+)$/gm, '<h1>$1</h1>')
+      .replace(/^##+\s+(.+)$/gm, '<h2>$1</h2>')
+      .replace(/^###+\s+(.+)$/gm, '<h3>$1</h3>')
+      // Handle bold and italic
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      // Handle code blocks with language
+      .replace(/```(\w+)?\n([\s\S]*?)```/g, (match, language, code) => {
+        return `<pre><code class="language-${language || 'plaintext'}">${code.trim()}</code></pre>`;
+      })
+      // Handle inline code
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      // Handle lists
+      .replace(/^\s*[-*+]\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+      // Handle numbered lists
+      .replace(/^\s*\d+\.\s+(.+)$/gm, '<li>$1</li>')
+      .replace(/(<li>.*<\/li>)/gs, '<ol>$1</ol>')
+      // Handle newlines
+      .replace(/\n/g, '<br>');
+
+    message.innerHTML = `<div class="message-content">${formattedContent}</div>`;
     message.style.cssText = `
-      background-color: ${isUser ? '#e3f2fd' : '#f0f7ff'};
-      padding: 12px;
+      background-color: ${isUser ? '#1a90ff' : '#2a2a2a'};
+      padding: 16px;
       border-radius: 8px;
       max-width: 80%;
       align-self: ${isUser ? 'flex-end' : 'flex-start'};
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.5;
     `;
+
+    // Add enhanced styling for markdown elements
+    const style = document.createElement('style');
+    style.textContent = `
+      .leetcode-snippeter-message h1 {
+        font-size: 1.5em;
+        margin: 16px 0 8px 0;
+        color: #ffffff;
+        border-bottom: 1px solid #444;
+        padding-bottom: 8px;
+      }
+      .leetcode-snippeter-message h2 {
+        font-size: 1.3em;
+        margin: 14px 0 7px 0;
+        color: #ffffff;
+      }
+      .leetcode-snippeter-message h3 {
+        font-size: 1.1em;
+        margin: 12px 0 6px 0;
+        color: #ffffff;
+      }
+      .leetcode-snippeter-message pre {
+        background-color: #1a1a1a;
+        padding: 12px;
+        border-radius: 6px;
+        overflow-x: auto;
+        margin: 8px 0;
+        border: 1px solid #444;
+      }
+      .leetcode-snippeter-message code {
+        font-family: 'Consolas', 'Monaco', monospace;
+        font-size: 13px;
+        line-height: 1.4;
+        background-color: #1a1a1a;
+        padding: 2px 4px;
+        border-radius: 3px;
+      }
+      .leetcode-snippeter-message ul, 
+      .leetcode-snippeter-message ol {
+        margin: 8px 0;
+        padding-left: 24px;
+      }
+      .leetcode-snippeter-message li {
+        margin: 4px 0;
+        line-height: 1.5;
+      }
+      .leetcode-snippeter-message strong {
+        font-weight: 600;
+        color: #ffffff;
+      }
+      .leetcode-snippeter-message em {
+        font-style: italic;
+        color: #e0e0e0;
+      }
+      .leetcode-snippeter-message br {
+        margin: 4px 0;
+      }
+      .leetcode-snippeter-message p {
+        margin: 8px 0;
+      }
+    `;
+    document.head.appendChild(style);
+
     chatContainer.appendChild(message);
     chatContainer.scrollTop = chatContainer.scrollHeight;
+  }
+
+  // Update loading message style
+  function showLoadingMessage() {
+    const loadingMessage = document.createElement('div');
+    loadingMessage.className = 'leetcode-snippeter-message assistant loading';
+    loadingMessage.innerHTML = '<div class="message-content">Thinking...</div>';
+    loadingMessage.style.cssText = `
+      background-color: #2a2a2a;
+      padding: 16px;
+      border-radius: 8px;
+      max-width: 80%;
+      align-self: flex-start;
+      color: #ffffff;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    `;
+    chatContainer.appendChild(loadingMessage);
+    return loadingMessage;
   }
 
   // Handle send button click
@@ -502,17 +670,7 @@ Please provide a helpful response focusing on:
     console.log('Question info:', questionInfo);
     
     // Add loading message
-    const loadingMessage = document.createElement('div');
-    loadingMessage.className = 'leetcode-snippeter-message assistant loading';
-    loadingMessage.innerHTML = '<div class="message-content">Thinking...</div>';
-    loadingMessage.style.cssText = `
-      background-color: #f0f7ff;
-      padding: 12px;
-      border-radius: 8px;
-      max-width: 80%;
-      align-self: flex-start;
-    `;
-    chatContainer.appendChild(loadingMessage);
+    const loadingMessage = showLoadingMessage();
 
     try {
       const response = await callGeminiAPI(message, questionInfo);
@@ -703,3 +861,78 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ snippets });
   }
 });
+
+function getMonacoCode() {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.textContent = `
+      (function() {
+        try {
+          const editor = monaco.editor.getModels()[0];
+          if (!editor) {
+            window.postMessage({ type: 'MONACO_CODE', error: 'No Monaco editor found' }, '*');
+            return;
+          }
+          const code = editor.getValue();
+          const language = editor.getLanguageId();
+          const problemTitle = document.querySelector('[data-cy="question-title"]')?.textContent || 'Unknown Problem';
+          window.postMessage({ 
+            type: 'MONACO_CODE', 
+            data: {
+              code,
+              language,
+              problemTitle,
+              timestamp: new Date().toISOString()
+            }
+          }, '*');
+        } catch (error) {
+          window.postMessage({ 
+            type: 'MONACO_CODE', 
+            error: error.message 
+          }, '*');
+        }
+      })();
+    `;
+    (document.head || document.documentElement).appendChild(script);
+    script.remove();
+
+    window.addEventListener('message', function handler(event) {
+      if (event.data.type === 'MONACO_CODE') {
+        window.removeEventListener('message', handler);
+        if (event.data.error) {
+          resolve({ error: event.data.error });
+        } else {
+          resolve(event.data.data);
+        }
+      }
+    });
+  });
+}
+
+// Function to format code for LLM
+function formatCodeForLLM(codeData) {
+  if (codeData.error) {
+    return `Error: ${codeData.error}`;
+  }
+
+  return `Problem: ${codeData.problemTitle}
+Language: ${codeData.language}
+Timestamp: ${codeData.timestamp}
+
+Code:
+\`\`\`${codeData.language}
+${codeData.code}
+\`\`\``;
+}
+
+// Example usage:
+// getMonacoCode().then(codeData => {
+//   const formattedCode = formatCodeForLLM(codeData);
+//   console.log(formattedCode);
+//   // Here you can send formattedCode to your LLM
+// });
+
+// Add function to clear chat history
+function clearChatHistory() {
+  chatHistory = [];
+}
