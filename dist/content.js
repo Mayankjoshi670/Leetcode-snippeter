@@ -1,5 +1,4 @@
-// Content script for LeetCode editor integration
-console.log('LeetCode Snippeter: Content script loaded');
+ console.log('LeetCode Snippeter: Content script loaded');
 
 let snippets = [];
 let suggestionBox = null;
@@ -7,10 +6,8 @@ let currentWord = '';
 let sideWindow = null;
 let sideWindowButton = null;
 
-// Add chat history tracking
 let chatHistory = [];
 
-// Inject script into page context
 function injectScript() {
   const script = document.createElement('script');
   script.src = chrome.runtime.getURL('injected.js');
@@ -20,7 +17,6 @@ function injectScript() {
   };
 }
 
-// Send message to injected script
 function sendToInjected(action, data) {
   window.postMessage({
     type: 'LEETCODE_SNIPPETER',
@@ -29,7 +25,6 @@ function sendToInjected(action, data) {
   }, '*');
 }
 
-// Listen for messages from injected script
 window.addEventListener('message', (event) => {
   if (event.data.type !== 'LEETCODE_SNIPPETER_RESPONSE') return;
   
@@ -72,27 +67,157 @@ function setupStorageListener() {
   });
 }
 
-// Create suggestion box element
+// // Create suggestion box element
+// function createSuggestionBox() {
+//   console.log('LeetCode Snippeter: Creating suggestion box');
+//   const box = document.createElement('div');
+//   box.className = 'leetcode-snippeter-suggestion-box';
+//   box.style.cssText = `
+//     position: absolute;
+//     background: #ffffff;
+//     border: 1px solid #e0e0e0;
+//     border-radius: 6px;
+//     box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+//     max-height: 200px;
+//     overflow-y: auto;
+//     z-index: 999999;
+//     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+//     display: none;
+//     padding: 4px;
+//     min-width: 150px;
+//     max-width: 300px;
+//   `;
+//   return box;
+// }
+
+
+// Create suggestion box element with Monaco Editor styling
 function createSuggestionBox() {
   console.log('LeetCode Snippeter: Creating suggestion box');
   const box = document.createElement('div');
   box.className = 'leetcode-snippeter-suggestion-box';
   box.style.cssText = `
     position: absolute;
-    background: #ffffff;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    max-height: 200px;
+    background: #252526;
+    border: 1px solid #454545;
+    border-radius: 3px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.36);
+    max-height: 190px;
     overflow-y: auto;
     z-index: 999999;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', 'Consolas', 'source-code-pro', monospace;
+    font-size: 13px;
     display: none;
-    padding: 4px;
-    min-width: 150px;
-    max-width: 300px;
+    padding: 0;
+    min-width: 200px;
+    max-width: 400px;
+    color: #cccccc;
   `;
+  
+  // Custom scrollbar styling to match Monaco
+  const style = document.createElement('style');
+  style.textContent = `
+    .leetcode-snippeter-suggestion-box::-webkit-scrollbar {
+      width: 10px;
+    }
+    .leetcode-snippeter-suggestion-box::-webkit-scrollbar-track {
+      background: #2d2d30;
+    }
+    .leetcode-snippeter-suggestion-box::-webkit-scrollbar-thumb {
+      background: #424242;
+      border-radius: 5px;
+    }
+    .leetcode-snippeter-suggestion-box::-webkit-scrollbar-thumb:hover {
+      background: #4f4f4f;
+    }
+    
+    .leetcode-snippeter-suggestion-item {
+      padding: 6px 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid #2d2d30;
+      transition: background-color 0.1s ease;
+    }
+    
+    .leetcode-snippeter-suggestion-item:hover,
+    .leetcode-snippeter-suggestion-item.selected {
+      background-color: #094771;
+    }
+    
+    .leetcode-snippeter-suggestion-item:last-child {
+      border-bottom: none;
+    }
+    
+    .leetcode-snippeter-suggestion-icon {
+      width: 16px;
+      height: 16px;
+      margin-right: 8px;
+      background: #569cd6;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: white;
+      flex-shrink: 0;
+    }
+    
+    .leetcode-snippeter-suggestion-text {
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    .leetcode-snippeter-suggestion-label {
+      color: #cccccc;
+      font-weight: 500;
+    }
+    
+    .leetcode-snippeter-suggestion-detail {
+      color: #858585;
+      font-size: 12px;
+      margin-top: 1px;
+    }
+  `;
+  
+  if (!document.getElementById('monaco-suggestion-styles')) {
+    style.id = 'monaco-suggestion-styles';
+    document.head.appendChild(style);
+  }
+  
   return box;
+}
+
+// Helper function to create suggestion items
+function createSuggestionItem(text, detail = '', type = 'S') {
+  const item = document.createElement('div');
+  item.className = 'leetcode-snippeter-suggestion-item';
+  
+  const icon = document.createElement('div');
+  icon.className = 'leetcode-snippeter-suggestion-icon';
+  icon.textContent = type; // S for Snippet, F for Function, etc.
+  
+  const textDiv = document.createElement('div');
+  textDiv.className = 'leetcode-snippeter-suggestion-text';
+  
+  const label = document.createElement('div');
+  label.className = 'leetcode-snippeter-suggestion-label';
+  label.textContent = text;
+  
+  textDiv.appendChild(label);
+  
+  if (detail) {
+    const detailDiv = document.createElement('div');
+    detailDiv.className = 'leetcode-snippeter-suggestion-detail';
+    detailDiv.textContent = detail;
+    textDiv.appendChild(detailDiv);
+  }
+  
+  item.appendChild(icon);
+  item.appendChild(textDiv);
+  
+  return item;
 }
 
 // Create side window button

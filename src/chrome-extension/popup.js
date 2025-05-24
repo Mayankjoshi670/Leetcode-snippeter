@@ -1,21 +1,17 @@
-// Initialize popup functionality
-document.addEventListener('DOMContentLoaded', () => {
+ document.addEventListener('DOMContentLoaded', () => {
   const titleInput = document.getElementById('snippet-title');
   const codeInput = document.getElementById('snippet-code');
   const saveButton = document.getElementById('save-snippet');
   const searchInput = document.getElementById('search-snippets');
   const snippetsList = document.getElementById('snippets-list');
 
-  // Load and display snippets
-  function loadSnippets() {
+   function loadSnippets() {
     chrome.storage.local.get(['snippets'], (result) => {
       const snippets = result.snippets || [];
       displaySnippets(snippets);
     });
   }
-
-  // Display snippets in the list
-  function displaySnippets(snippets, searchTerm = '') {
+function displaySnippets(snippets, searchTerm = '') {
     snippetsList.innerHTML = '';
     
     const filteredSnippets = searchTerm
@@ -31,7 +27,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Create a snippet element
   function createSnippetElement(snippet, index) {
     const div = document.createElement('div');
     div.className = 'snippet-item';
@@ -47,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="snippet-code">${snippet.code}</div>
     `;
 
-    // Add event listeners
     const copyBtn = div.querySelector('.copy-btn');
     const deleteBtn = div.querySelector('.delete-btn');
     const expandBtn = div.querySelector('.expand-btn');
@@ -108,6 +102,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Initial load
+  
   loadSnippets();
 }); 

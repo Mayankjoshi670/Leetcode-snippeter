@@ -1,14 +1,10 @@
-// Options page script
 document.addEventListener('DOMContentLoaded', () => {
-  // Add any options page functionality here if needed
 });
 
-// Save options to chrome.storage
 function saveOptions() {
   const apiKey = document.getElementById('apiKey').value.trim();
   const status = document.getElementById('status');
   
-  // Validate API key format
   if (!apiKey) {
     status.textContent = 'Please enter an API key.';
     status.className = 'status error';
@@ -40,7 +36,6 @@ function saveOptions() {
   });
 }
 
-// Restore options from chrome.storage
 function restoreOptions() {
   chrome.storage.local.get({
     geminiApiKey: ''
@@ -53,11 +48,9 @@ function restoreOptions() {
   });
 }
 
-// Add event listeners
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.getElementById('save').addEventListener('click', saveOptions);
 
-// Add input validation
 document.getElementById('apiKey').addEventListener('input', (e) => {
   const apiKey = e.target.value.trim();
   const saveButton = document.getElementById('save');
