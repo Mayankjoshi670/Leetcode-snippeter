@@ -1,7 +1,4 @@
-// This script runs in the page context and has access to the Monaco editor
 console.log('LeetCode Snippeter: Injected script loaded');
-
-// Handle messages from content script
 window.addEventListener('message', (event) => {
   if (event.data.type !== 'LEETCODE_SNIPPETER') return;
 
@@ -10,14 +7,12 @@ window.addEventListener('message', (event) => {
       getCurrentWord();
       break;
     case 'INSERT_SNIPPET':
-      // insertSnippet(event.data.data.snippet);
-      insertSnippet(event.data.data); // ✅
+      insertSnippet(event.data.data);
 
       break;
   }
 });
 
-// Get current word from Monaco editor
 function getCurrentWord() {
   try {
     const editor = monaco.editor.getEditors?.()?.[0];
@@ -51,11 +46,6 @@ function getCurrentWord() {
     data: null
   }, '*');
 }
-
- 
-
- 
-
 
 
 function insertSnippet(snippetText) {
